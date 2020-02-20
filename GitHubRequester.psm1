@@ -52,7 +52,7 @@
       $RestParams.ContentType = 'application/json'
     }
 
-    return $(Invoke-RestMethod @RestParams)
+    return $(Invoke-RestMethod @RestParams | ForEach-Object { $_ })
   }
 
 }
