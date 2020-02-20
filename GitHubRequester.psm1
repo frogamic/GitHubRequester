@@ -1,55 +1,47 @@
-﻿Class GitHubRequester
-{
+﻿Class GitHubRequester {
   $Domain = "api.github.com"
-  $Headers = @{}
+  $Headers = @{
+    Accept = "application/vnd.github.v3+json"
+  }
+  $Credential = $Null
 
-  GitHubRequester($username, $token)
-  {
-    $this.Headers = @{
-      Authorization = "Basic $([Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes("${username}:${token}")))"
-      Accept = "application/vnd.github.v3+json"
-    }
+  GitHubRequester($Credential) {
+    $this.Credential = $Credential
   }
 
-  [object]Post($URL, $Data)
-  {
-    return $this.Request('POST', $URL, $Data)
+  [object]Post($Endpoint, $Data) {
+    return $this.Request('POST', $Endpoint, $Data)
   }
 
-  [object]Get($URL)
-  {
-    return $this.Request('GET', $URL)
+  [object]Get($Endpoint) {
+    return $this.Request('GET', $Endpoint)
   }
 
-  [object]Put($URL, $Data)
-  {
-    return $this.Request('PUT', $URL, $Data)
+  [object]Put($Endpoint, $Data) {
+    return $this.Request('PUT', $Endpoint, $Data)
   }
 
-  [object]Patch($URL, $Data)
-  {
-    return $this.Request('PATCH', $URL, $Data)
+  [object]Patch($Endpoint, $Data) {
+    return $this.Request('PATCH', $Endpoint, $Data)
   }
 
-  [object]Delete($URL)
-  {
-    return $this.Request('DELETE', $URL)
+  [object]Delete($Endpoint) {
+    return $this.Request('DELETE', $Endpoint)
   }
 
-  [object]Request($Method, $URL)
-  {
-    return $this.Request($Method, $URL, $null)
+  [object]Request($Method, $Endpoint) {
+    return $this.Request($Method, $Endpoint, $null)
   }
 
-  [object]Request($Method, $URL, $Data)
-  {
-    $URI = "https://$($this.Domain)/$URL"
-    $Results = @()
-
+  [object]Request($Method, $Endpoint, $Data) {
     $RestParams = @{
-      Method = $Method;
-      Uri = $URI;
-      Headers = $this.Headers;
+      Uri = "https://$($this.Domain)/$Endpoint"
+      Method = $Method
+      Headers = $this.Headers
+      FollowRelLink = $true
+      Authentication = 'Basic'
+      Credential = $this.Credential
+      ErrorAction = 'Stop'
     }
 
     if ($Data) {
@@ -60,23 +52,7 @@
       $RestParams.ContentType = 'application/json'
     }
 
-    while (![string]::IsNullOrEmpty($RestParams.URI))
-    {
-      [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-      $ResponseHeaders = @{}
-      $Results += $(Invoke-RestMethod @RestParams -ErrorAction Stop -ResponseHeadersVariable ResponseHeaders)
-      $RestParams.URI = $Null
-      if ($ResponseHeaders.Link) {
-        ForEach ($link in $ResponseHeaders.Link.split(',')) {
-          if ($link -match '<(?<next>[^>]*)>.*rel="next"\s*$') {
-            $RestParams.URI = $Matches['next']
-            break
-          }
-        }
-      }
-    }
-
-    return $Results
+    return $(Invoke-RestMethod @RestParams)
   }
 
 }
@@ -84,12 +60,10 @@
 Function New-GitHubRequester {
   Param(
     [Parameter(Mandatory)]
-    [String] $Username,
-    [Parameter(Mandatory)]
-    [String] $Token
+    [PSCredential] $Credential
   )
 
-  New-Object GitHubRequester -ArgumentList $Email,$Token
+  New-Object GitHubRequester -ArgumentList $Credential
 }
 
 Export-ModuleMember -Function New-GitHubRequester
